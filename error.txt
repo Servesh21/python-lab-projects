@@ -1,0 +1,4 @@
+Total occurrences of 'error': 1
+
+Line numbers where 'error' occurred:
+Line 1

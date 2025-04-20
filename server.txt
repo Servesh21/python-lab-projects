@@ -1,0 +1,1 @@
+this is to check how many occurrences of error are there in this file and store it in error txt file
