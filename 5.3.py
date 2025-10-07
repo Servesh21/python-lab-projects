@@ -7,7 +7,17 @@ class BankAccount:
         self.balance += amount
         print(f"Deposited ${amount}.\nNew Balance: ${self.balance}")
         
-    def withdraw(self,amount):
+class BankAccount:  # Assuming this is the class where 'balance' is defined
+
+    def __init__(self, balance=0):
+        self.balance = balance
+
+    def withdraw(self, amount):
+        """Withdraws money from the account.
+
+        Args:
+            amount: The amount to withdraw.
+        """
         if amount > self.balance:
             print("Insufficient funds")
         else:
@@ -30,10 +40,15 @@ class CurrentAccount(BankAccount):
         super().__init__(account_holder,balance)
         self.limit = limit
         
-    def withdraw(self,amount):
+class BankAccount:  # Added class definition for context
+    def __init__(self, balance=0, limit=0):
+        self.balance = balance
+        self.limit = limit
+
+    def withdraw(self, amount):
+        # Move the withdraw logic to the BankAccount class
         if amount > self.balance + self.limit:
             print("Transaction declined. Overdraft limit exceeded,")
-            
         else:
             self.balance -= amount
             print(f"Withdrew: ${amount}.\nRemaining balance: ${self.balance}")
