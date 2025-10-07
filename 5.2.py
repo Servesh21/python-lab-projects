@@ -21,7 +21,17 @@ class BankAccount:
         return self.balance
 
 
+class BankAccount:  # Assuming this is the class containing the original display method
+    def __init__(self, acc_no, name, balance):
+        self.acc_no = acc_no
+        self.name = name
+        self.balance = balance
+
     def display(self):
+        """
+        Displays the account information.
+        Moved from external function to BankAccount class to eliminate feature envy.
+        """
         print("Account Number:", self.acc_no)
         print("Name:", self.name)
         print("Balance:", self.balance)

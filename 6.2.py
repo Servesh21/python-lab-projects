@@ -32,23 +32,43 @@ def show_user():
     else:
         print("No users found")
         
-def update_user():
-    user_id=input("Enter User ID to update : ")
-    cur.execute("select * from user where id = ?",(user_id,))
-    user = cur.fetchone()
+import sqlite3
 
-    if user:
-        try:
-            new_name = input(f"Enter New Name ({user[1]}) : ")
-            new_email = input(f"Enter New Email ({user[2]}) : ")
-            new_age = input(f"Enter New Age ({user[3]}) : ")
-            cur.execute("update user set name = ?, email = ?,age = ? where id=?",(new_name,new_email,new_age,user_id) )
-            conn.commit()
-            print("User added successfully")
-        except sqlite3.IntegrityError:
-            print("Error: Email already exists!")
-    else:
-        print("User not found")
+class DatabaseCursor:
+    def __init__(self, conn):
+        self.conn = conn
+        self.cursor = conn.cursor()
+
+    def fetch_user(self, user_id):
+        """Fetches a user from the database by ID."""
+        self.cursor.execute("select * from user where id = ?", (user_id,))
+        return self.cursor.fetchone()
+
+    def update_user(self, user_id):
+        """Updates a user's information in the database."""
+        user = self.fetch_user(user_id)
+
+        if user:
+            try:
+                new_name = input(f"Enter New Name ({user[1]}) : ")
+                new_email = input(f"Enter New Email ({user[2]}) : ")
+                new_age = input(f"Enter New Age ({user[3]}) : ")
+                self.cursor.execute(
+                    "update user set name = ?, email = ?,age = ? where id=?",
+                    (new_name, new_email, new_age, user_id),
+                )
+                self.conn.commit()
+                print("User updated successfully")
+            except sqlite3.IntegrityError:
+                print("Error: Email already exists!")
+        else:
+            print("User not found")
+
+
+def update_user(database_cursor):
+    """Prompts the user for information and updates the user in the database using the DatabaseCursor."""
+    user_id = input("Enter User ID to update : ")
+    database_cursor.update_user(user_id)
         
 def delete_user():
     user_id=input("Enter User ID to update : ")
