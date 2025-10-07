@@ -28,11 +28,23 @@ def checkbalance(customer):
     with lock:
         print(f"[{customer}] Checking balance... Current balance: ${account_balance}")
     
-def transfer(amount,from_customer,to_customer):
+import time
+import threading
+
+lock = threading.Lock()
+account_balance = 1000
+
+class TimeHelper:
+    @staticmethod
+    def simulate_processing(duration=2):
+        """Simulates a time-consuming process using time.sleep."""
+        time.sleep(duration)
+
+def transfer(amount, from_customer, to_customer):
     global account_balance
     with lock:
         print(f"[{from_customer}] initiating transfer of ${amount} to {to_customer}...")
-        time.sleep(2)
+        TimeHelper.simulate_processing() # Use TimeHelper to encapsulate time.sleep
         if account_balance >= amount:
             account_balance -= amount
             print(f"[{from_customer}] Transfer successful! New balance: ${account_balance}")
