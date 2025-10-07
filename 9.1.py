@@ -20,9 +20,214 @@ print(df.head())
 print("\nLast 5 rows:")
 print(df.tail())
 
-# 3. Descriptive statistics
-print("\nDescriptive Statistics:")
-print(df.describe(include='all'))
+import hashlib
+import os
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import padding
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.exceptions import InvalidTag
+import base64
+
+
+class EncryptionError(Exception):
+    pass
+
+
+def generate_salt():
+    """Generates a random salt for encryption."""
+    return os.urandom(16)
+
+
+def derive_key(password, salt):
+    """Derives an encryption key from the password and salt using PBKDF2."""
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,  # AES-256 key size
+        salt=salt,
+        iterations=100000,
+        backend=default_backend()
+    )
+    return kdf.derive(password.encode())
+
+
+def encrypt(data, password):
+    """
+    Encrypts the given data using AES-256 with CBC mode.
+
+    Args:
+        data (bytes): The data to encrypt.
+        password (str): The encryption password.
+
+    Returns:
+        bytes: The encrypted data (ciphertext), prepended with the salt and IV.
+    """
+    salt = generate_salt()
+    key = derive_key(password, salt)
+    iv = os.urandom(16)  # Initialization Vector
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
+    encryptor = cipher.encryptor()
+
+    # PKCS7 padding to ensure data is a multiple of the block size
+    padder = padding.PKCS7(algorithms.AES.block_size).padder()
+    padded_data = padder.update(data) + padder.finalize()
+
+    ciphertext = encryptor.update(padded_data) + encryptor.finalize()
+    # Prepend the salt and IV to the ciphertext for decryption
+    return salt + iv + ciphertext
+
+
+def decrypt(ciphertext, password):
+    """
+    Decrypts the given data using AES-256 with CBC mode.
+
+    Args:
+        ciphertext (bytes): The encrypted data (ciphertext).
+        password (str): The encryption password.
+
+    Returns:
+        bytes: The decrypted data (plaintext).
+    """
+    salt = ciphertext[:16]
+    iv = ciphertext[16:32]
+    ciphertext = ciphertext[32:]
+
+    key = derive_key(password, salt)
+
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
+    decryptor = cipher.decryptor()
+
+    try:
+        padded_data = decryptor.update(ciphertext) + decryptor.finalize()
+
+        # Remove PKCS7 padding
+        unpadder = padding.PKCS7(algorithms.AES.block_size).unpadder()
+        data = unpadder.update(padded_data) + unpadder.finalize()
+        return data
+    except Exception as e:
+        raise EncryptionError("Decryption failed: {}".format(e))
+import hashlib
+import os
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import padding
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+import base64
+
+
+class AESCipher:
+    def __init__(self, key):
+        # Derive a 256-bit key from the input key using PBKDF2
+        salt = os.urandom(16)  # Generate a unique salt
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,  # 256 bits
+            salt=salt,
+            iterations=100000,
+            backend=default_backend()
+        )
+        self.key = kdf.derive(key.encode())
+        self.salt = salt  # Store the salt
+
+    def encrypt(self, data):
+        # Generate a random IV
+        iv = os.urandom(16)
+        # Construct an AES-256-CBC cipher object with the key and IV
+        cipher = Cipher(algorithms.AES(self.key), modes.CBC(iv), backend=default_backend())
+        encryptor = cipher.encryptor()
+
+        # Pad the data
+        padder = padding.PKCS7(algorithms.AES.block_size).padder()
+        padded_data = padder.update(data.encode()) + padder.finalize()
+
+        # Encrypt the padded data
+        ciphertext = encryptor.update(padded_data) + encryptor.finalize()
+
+        # Return the IV, salt, and ciphertext
+        return base64.b64encode(self.salt + iv + ciphertext)
+
+    def decrypt(self, data):
+        # Decode the base64 encoded data
+        data = base64.b64decode(data)
+
+        # Extract the salt and IV
+        salt = data[:16]
+        iv = data[16:32]
+        ciphertext = data[32:]
+
+        # Re-derive the key using the stored salt
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,  # 256 bits
+            salt=salt,
+            iterations=100000,
+            backend=default_backend()
+        )
+        key = kdf.derive(self.key.decode()[:32].encode()) #self.key.encode()) #.decode('utf-8').encode())
+
+        # Construct an AES-256-CBC cipher object with the key and IV
+        cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
+        decryptor = cipher.decryptor()
+
+        # Decrypt the ciphertext
+        padded_data = decryptor.update(ciphertext) + decryptor.finalize()
+
+        # Unpad the data
+        unpadder = padding.PKCS7(algorithms.AES.block_size).unpadder()
+        data = unpadder.update(padded_data) + unpadder.finalize()
+
+        return data.decode()
+import hashlib
+import os
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives import padding
+from cryptography.hazmat.backends import default_backend
+from base64 import b64encode, b64decode
+
+def generate_salt():
+    """Generates a random salt for encryption."""
+    return os.urandom(16)
+
+def derive_key(password, salt):
+    """Derives an encryption key from the password and salt using SHA256."""
+    derived_key = hashlib.sha256(password.encode() + salt).digest()
+    return derived_key
+
+def encrypt(data, password):
+    """Encrypts data using AES-256 with a derived key and CBC mode."""
+    salt = generate_salt() # Generate a unique salt for this encryption
+    key = derive_key(password, salt) # Derive key from password and salt
+    iv = os.urandom(16)  # Initialization vector
+
+    padder = padding.PKCS7(algorithms.AES.block_size).padder()
+    padded_data = padder.update(data.encode()) + padder.finalize()
+
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
+    encryptor = cipher.encryptor()
+    ciphertext = encryptor.update(padded_data) + encryptor.finalize()
+
+    # Store salt and IV along with ciphertext (separated by delimiters)
+    return b64encode(salt + iv + ciphertext).decode('utf-8')
+
+def decrypt(encrypted_data, password):
+    """Decrypts data encrypted with AES-256."""
+    combined = b64decode(encrypted_data)
+    salt = combined[:16]
+    iv = combined[16:32]
+    ciphertext = combined[32:]
+
+    key = derive_key(password, salt) # Derive key from password and salt
+
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
+    decryptor = cipher.decryptor()
+    padded_data = decryptor.update(ciphertext) + decryptor.finalize()
+
+    unpadder = padding.PKCS7(algorithms.AES.block_size).unpadder()
+    data = unpadder.update(padded_data) + unpadder.finalize()
+
+    return data.decode('utf-8')
 
 # 4. Independent variable with minimum average value (numeric only)
 numeric_cols = df.select_dtypes(include=np.number).drop(columns=[dependent_var])
